@@ -1,15 +1,14 @@
-#
-#   handbrake_batch.py
-#
-#   A script I wrote to batch convert a group of files, to prep
-#   them for my Apple TV 2.
-#
-#   Arguments -
-#   * <extension> - Convert all files of this extension.
-#   * <input folder> - The folder containing the files to convert.
-#   * <output folder> - The folder to write the new files to. If not given,
-#                       will write all files to the input folder.
-#
+#!/usr/bin/env python
+"""
+A script I wrote to batch convert a group of files, to prep
+them for my Apple TV 2.
+
+Arguments -
+* <extension> - Convert all files of this extension.
+* <input folder> - The folder containing the files to convert.
+* <output folder> - The folder to write the new files to. If not given,
+                   will write all files to the input folder.
+"""
 import sys, glob, os, subprocess, time
 
 if len(sys.argv) < 3:
