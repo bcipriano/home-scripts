@@ -1,0 +1,3 @@
+*.pyc
+goodreads/
+gr_config.py
