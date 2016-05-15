@@ -1,128 +1,104 @@
 #!/usr/bin/env python
 """
-A script I wrote to batch convert a group of files, to prep
-them for my Apple TV 2.
-
-Arguments -
-* <extension> - Convert all files of this extension.
-* <input folder> - The folder containing the files to convert.
-* <output folder> - The folder to write the new files to. If not given,
-                   will write all files to the input folder.
+A script I wrote to batch convert a group of files to prep them for my Apple TV.
 """
-import sys, glob, os, subprocess, time
 
-if len(sys.argv) < 3:
-    print 'Usage: %s <extension> <input folder> [<output folder>]' % (sys.argv[0],)
-    print 'If <output folder> is not specified, files will be written to the <input folder>.'
-    sys.exit(1)
 
-#
-#   Parse input args.
-#
-#   File Extension
-ext = sys.argv[1]
-#   Input Folder
-in_dir = sys.argv[2]
-#   Output Folder (optional)
-if len(sys.argv) > 3:
-    out_dir = sys.argv[3]
-else:
-    out_dir = in_dir
+import argparse
+import glob
+import os
+import subprocess
+import sys
+import tempfile
+import time
 
-#
-#   Use glob() to collect a file list.
-#
-file_list = glob.glob('%s/*.%s' % (in_dir, ext))
 
-#
-#   Process each file with HandbrakeCLI.
-#
-file_i = 0
-for in_file in file_list:
-    file_i += 1
-    #
-    #   Parse the filename and generate an output filename.
-    #   TODO: make the output extension/preset configurable via CLI option.
-    #
-    in_base_full = os.path.basename(in_file)
-    in_base, in_ext = os.path.splitext(in_base_full)
-    out_file = '%s/%s.m4v' % (out_dir, in_base)
-    #
-    #   If the output file exists already, prompt before removing or skipping.
-    #
-    if os.path.exists(out_file):
-        answer = raw_input('File %s exists. Do you want to overwrite? (y/N) ' % (os.path.basename(out_file),))
-        if answer == 'y':
-            os.remove(out_file)
-        else:
-            continue
-    #
-    #   Generate a log file name.
-    #
-    log_file = '/tmp/handbrake_batch.%d.log' % (int(time.time()),)
-    #
-    #   Print a status message.
-    #
-    print 'Converting file %d of %d: %s...' % (file_i, len(file_list), in_base_full)
-    #
-    #   Build the Handbrake command, and execute it.
-    #
-    cmd = '/Applications/HandBrakeCLI --preset "AppleTV 3" --input "%s" --output "%s" &> %s & echo $!' % (in_file, out_file, log_file)
+def _convert_with_handbrake(in_file, out_dir, file_num, total_files):
+  """Convert one file.
+
+  TODO: make the output extension/preset configurable via argument."""
+
+  # Parse the filename and generate an output filename.
+  out_file = os.path.join(out_dir, '%s.m4v' % os.path.splitext(os.path.basename(in_file))[0])
+
+  # If the output file exists already, prompt before removing or skipping.
+  if os.path.exists(out_file):
+    answer = raw_input('File %s exists. Do you want to overwrite? (y/N) ' %
+        os.path.basename(out_file))
+    if answer == 'y':
+      os.remove(out_file)
+    else:
+      return
+
+  with tempfile.NamedTemporaryFile() as fp:
+    print 'Converting file %d of %d: %s...' % (file_num+1, total_files, os.path.basename(in_file))
+
+    # run Handbrake, pipe all output to the temp file and background the process
+    cmd = ('/Applications/HandBrakeCLI --preset "AppleTV 3" --input "%s" '
+           '--output "%s" &> %s & echo $!') % (in_file, out_file, fp.name)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    # This foreground process should return more or less immediately.
     out, err = p.communicate()
+    # grab the pid of the backgrounded process
     pid = out.strip()
-    #
-    #   A few seconds to allow the process to get going.
-    #
+    # A few seconds to allow the process to get going.
     time.sleep(2)
-    #
-    #   Enter the process monitoring loop.
-    #
-    process_running = True
-    while process_running:
-        #
-        #   Run a ps and parse its output to make sure the command is still running.
-        #
-        cmd = 'ps ax'
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = p.communicate()
-        ps_lines = out.split('\n')
-        process_running = False
-        for ps_line in ps_lines:
-            line_clean = ps_line.strip()
-            if line_clean == '':
-                continue
-            line_split = line_clean.split()
-            if len(line_split) == 0:
-                continue
-            #
-            #   Look for lines starting with the process ID.
-            #
-            if line_split[0] == pid:
-                process_running = True
-                break
-        #
-        #   If the process is running, use tail to grab the last line of the log
-        #   file. If it contains a '%', its probably reporting progress. Print
-        #   that line, but use \r to return the output cursor to the beginning,
-        #   which overwrites the previous progress message in the user's terminal.
-        #
-        if process_running:
-            cmd = 'tail -n 1 %s' % (log_file,)
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = p.communicate()
-            out_split = out.strip().split()
-            prog_found = False
-            for chunk in out_split:
-                if chunk.strip() == '%':
-                    prog_found = True
-            if prog_found:
-                sys.stdout.write('\r%s' % (out,)) 
-                sys.stdout.flush()
-            time.sleep(1)
-    #
-    #   The process isn't running anymore. Clean up - use print to move
-    #   to the next line, and delete the log file.
-    #
-    print ''
-    os.remove( log_file )
+
+    _monitor_ongoing_conversion(pid, fp.name)
+
+
+def _monitor_ongoing_conversion(pid, log_file):
+  process_running = True
+  while process_running:
+    # Run a ps and parse its output to make sure the command is still running.
+    p = subprocess.Popen(['ps', 'ax'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    ps_lines = out.split('\n')
+    process_running = False
+    for ps_line in ps_lines:
+      ps_line = ps_line.strip()
+      if not ps_line:
+        continue
+      if ps_line.split()[0] == pid:
+        process_running = True
+        break
+
+    if process_running:
+      _print_last_log_line(log_file)
+      time.sleep(1)
+
+  # _print_last_log_line doesn't add \n at the end of its stdout lines
+  sys.stdout.write('\n')
+
+
+def _print_last_log_line(log_file):
+  cmd = ['tail', '-n', '1', log_file]
+  p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  out, err = p.communicate()
+  out_split = out.strip().split()
+  for chunk in out_split:
+    # lines with "%" indicate an in-progress render, we should write that line
+    if chunk.strip() == '%':
+      # use \r and skip \n so that each line overwrites the last,
+      # creating a live-updating status
+      sys.stdout.write('\r%s' % out)
+      sys.stdout.flush()
+      break
+
+
+def main():
+  parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument('--ext', required=True, help=('Convert all files with this extension.'))
+  parser.add_argument('--in-dir', required=True, help=('Directory containing input files.'))
+  parser.add_argument('--out-dir', help=('Output directory. If not given, input directory '
+                                         'will be used.'))
+  args = parser.parse_args()
+  args.out_dir = args.out_dir if args.out_dir else args.in_dir
+
+  file_list = glob.glob('%s/*.%s' % (args.in_dir, args.ext))
+  for file_num, in_file in enumerate(file_list):
+    _convert_with_handbrake(in_file, args.out_dir, file_num, len(file_list))
+
+
+if __name__ == '__main__':
+  main()
