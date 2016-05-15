@@ -222,7 +222,7 @@ def main():
       if not match:
         continue
 
-      if os.path.splitext(ep_filename)[1] != '.m4v':
+      if os.path.splitext(ep_filename)[1] not in ('.m4v', '.mp4'):
         continue
 
       logger.info('found episode %s' % ep_filename)
