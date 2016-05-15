@@ -4,7 +4,11 @@ Downloads Grateful Dead shows from archive.org.
 
 Provide a link to the URL of the "details" page, for example:
 
-$ ./dl_dead.py https://archive.org/details/gd71-12-10.sbd.yerys.1311.sbeok.shnf
+$ ./dl_dead.py https://archive.org/details/gd71-12-10.shnf
+
+NOTE from Brian:
+This script is now mostly defunct, as archive.org no longer allows downloading of most
+soundboard shows. If used it should only be used to download freely available shows.
 """
 
 import argparse
