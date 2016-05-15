@@ -67,7 +67,7 @@ for in_file in file_list:
     #
     #   Build the Handbrake command, and execute it.
     #
-    cmd = '/Applications/HandBrakeCLI --preset "AppleTV 2" --input "%s" --output "%s" &> %s & echo $!' % (in_file, out_file, log_file)
+    cmd = '/Applications/HandBrakeCLI --preset "AppleTV 3" --input "%s" --output "%s" &> %s & echo $!' % (in_file, out_file, log_file)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = p.communicate()
     pid = out.strip()
