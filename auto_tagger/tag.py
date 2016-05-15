@@ -32,8 +32,12 @@ def _get_logger():
 
 def _verify_api_key_exists(logger):
   if 'TVDB_API_KEY' not in globals():
-    logger.error('TVDB_API_KEY is not set.')
-    sys.exit(1)
+    if os.environ.get('TVDB_API_KEY'):
+      global TVDB_API_KEY
+      TVDB_API_KEY = os.environ.get('TVDB_API_KEY')
+    else:
+      logger.error('TVDB_API_KEY is not set.')
+      sys.exit(1)
 
 
 def _login_and_get_headers(logger):
@@ -118,8 +122,8 @@ class Episode(object):
     self.title = title
 
   def __str__(self):
-    return '%s S%02dE%02d: %s' % (self.show_name, self.season_num,
-                                  self.ep_num, self.title)
+    return '%s - S%02dE%02d - %s' % (self.show_name, self.season_num,
+                                     self.ep_num, self.title)
 
   def __repr__(self):
     return self.__str__()
@@ -162,7 +166,7 @@ def _add_to_library(ep_filepath, ep, title_card):
   script_path = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                              'add_to_library_and_tag_tv_show.scpt')
   cmd = ['osascript', script_path, ep_filepath, ep.show_name,
-         str(ep.season_num), str(ep.ep_num), ep.title, title_card]
+         str(ep.season_num), str(ep.ep_num), str(ep), title_card]
   p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = p.communicate()
   if p.returncode:
