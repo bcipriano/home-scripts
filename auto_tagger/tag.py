@@ -50,7 +50,7 @@ def _login_and_get_headers(logger):
                     data='{"apikey": "%s"}' % TVDB_API_KEY,
                     headers=headers)
   if r.status_code != 200:
-    logger.error('error logging in: %d: %s' % (r.status_code, r.text))
+    logger.error('error logging in: %d: %s', r.status_code, r.text)
     sys.exit(1)
 
   headers['Authorization'] = 'Bearer %s' % r.json().get('token')
@@ -66,7 +66,7 @@ def _get_show_details(show_name, headers, logger):
     if r.status_code == 404:
       logger.error('show not found, exiting')
     else:
-      logger.error('unexpected error: %d: %s' % (r.status_code, r.text))
+      logger.error('unexpected error: %d: %s', r.status_code, r.text)
     sys.exit(1)
 
   shows_found = r.json().get('data')
@@ -74,7 +74,7 @@ def _get_show_details(show_name, headers, logger):
   if len(shows_found) > 1:
     shows_by_id = {}
 
-    logger.warning('multiple shows matching name %s were found' % show_name)
+    logger.warning('multiple shows matching name %s were found', show_name)
     for match in shows_found:
       lead = '%d: %s (%s, %s):' % (match.get('id'),
                                    match.get('seriesName'),
@@ -106,8 +106,8 @@ def _get_title_card_image(show_dir, logger):
 
   title_card = possible_titles[0]
   if os.path.splitext(title_card)[1] not in ('.jpg', '.png'):
-    logger.error(('found title card image %s but it is not a jpg '
-                  'or png.') % title_card)
+    logger.error('found title card image %s but it is not a jpg '
+                 'or png.', title_card)
     sys.exit(1)
 
   return title_card
@@ -139,9 +139,8 @@ def _get_series_episodes(series_id, show_name, headers):
     r = requests.get('%s/series/%d/episodes' % (TVDB_API, series_id),
                      params={'page':current_page}, headers=headers)
     if r.status_code != 200:
-      logger.error(('error getting episodes for series %d page %d: '
-                    '%d: %s') % (series_id, current_page,
-                                 r.status_code, r.text))
+      logger.error('error getting episodes for series %d page %d: %d: %s',
+                   series_id, current_page, r.status_code, r.text))
       sys.exit(1)
 
     if last_page is None:
@@ -170,15 +169,15 @@ def _add_to_library(ep_filepath, ep, title_card):
   p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = p.communicate()
   if p.returncode:
-    logger.error(('error adding episode to library. rc: %d, stdout: %s, '
-                  'stderr: %s') % (p.returncode, out, err))
+    logger.error('error adding episode to library. rc: %d, stdout: %s, stderr: %s',
+                 p.returncode, out, err)
     sys.exit(1)
 
 
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument('--show-dir', required=True, help=('Directory containing '
-                                                         'media.'))
+  parser.add_argument('--show-dir', required=True,
+      help='Directory containing media to be tagged.')
   args = parser.parse_args()
 
   logger = _get_logger()
@@ -187,14 +186,14 @@ def main():
 
   dir_split = args.show_dir.rstrip('/').split('/')
   show_name_from_dir = dir_split[-1]
-  logger.info('detected show name "%s"' % show_name_from_dir)
+  logger.info('detected show name "%s"', show_name_from_dir)
 
   show_details = _get_show_details(show_name_from_dir, headers, logger)
-  logger.info('found show "%s", ID %d' % (show_details.get('seriesName'),
-                                          show_details.get('id')))
+  logger.info('found show "%s", ID %d', show_details.get('seriesName'),
+                                        show_details.get('id'))
 
   title_card = _get_title_card_image(args.show_dir, logger)
-  logger.info('found title card image %s' % title_card)
+  logger.info('found title card image %s', title_card)
 
   episodes = _get_series_episodes(show_details.get('id'), show_name_from_dir,
                                   headers)
@@ -204,16 +203,16 @@ def main():
     if not os.path.isdir(season_dir):
       continue
 
-    logger.info('found season directory %s' % season_dir)
+    logger.info('found season directory %s', season_dir)
 
     season_num_from_dir = int(child_dirname.split()[-1])
-    logger.info('determined season number %d' % season_num_from_dir)
+    logger.info('determined season number %d', season_num_from_dir)
 
     # check TVDB for that episode, error if not found
     season_eps = episodes.get(str(season_num_from_dir))
     if not season_eps:
-      logger.error(('no episodes were found in TVDB for season '
-                    '%d') % season_num_from_dir)
+      logger.error('no episodes were found in TVDB for season %d',
+                   season_num_from_dir)
       sys.exit(1)
 
     for ep_filename in os.listdir(season_dir):
@@ -225,28 +224,26 @@ def main():
       if os.path.splitext(ep_filename)[1] not in ('.m4v', '.mp4'):
         continue
 
-      logger.info('found episode %s' % ep_filename)
+      logger.info('found episode %s', ep_filename)
 
       season_num_from_file = int(match.group('season'))
       ep_num_from_file = int(match.group('episode'))
 
-      logger.info('detected season number %d and episode number %d' % (
-          season_num_from_file, ep_num_from_file))
+      logger.info('detected season number %d and episode number %d',
+                  season_num_from_file, ep_num_from_file)
 
       if season_num_from_file != season_num_from_dir:
-        logger.error(('season number for file %s is %d, does not match '
-                      'directory season %d') % (ep_filename,
-                                                season_num_from_file,
-                                                season_num_from_dir))
+        logger.error('season number for file %s is %d, does not match directory season %d',
+                     ep_filename, season_num_from_file, season_num_from_dir)
 
       for ep in season_eps:
         if ep.ep_num == ep_num_from_file:
           break
       else:
-        logger.error('episode %d was not found in TVDB' % ep_num_from_file)
+        logger.error('episode %d was not found in TVDB', ep_num_from_file)
         sys.exit(1)
 
-      logger.info('found episode in TVDB %s' % ep)
+      logger.info('found episode in TVDB %s', ep)
 
       _add_to_library(os.path.join(season_dir, ep_filename), ep, title_card)
       logger.info('added to library')
