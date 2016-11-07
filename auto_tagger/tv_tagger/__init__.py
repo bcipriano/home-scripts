@@ -139,8 +139,6 @@ class TVTagger(object):
                                'add_to_library_and_tag_tv_show.scpt')
     cmd = ['osascript', script_path, ep_filepath, ep.show_name,
            str(ep.season_num), str(ep.ep_num), unicode(ep), title_card]
-    print cmd
-    #return
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     if p.returncode:
@@ -181,7 +179,7 @@ class TVTagger(object):
 
       for ep_filename in os.listdir(season_dir):
         match = re.search(r'S(?P<season>\d{1,2})E(?P<episode>\d{1,2})',
-                          ep_filename)
+                          ep_filename, re.IGNORECASE)
         if not match:
           continue
 
