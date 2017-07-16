@@ -37,8 +37,9 @@ def _convert_with_handbrake(in_file, out_dir, file_num, total_files):
     print 'Converting file %d of %d: %s...' % (file_num+1, total_files, os.path.basename(in_file))
 
     # run Handbrake, pipe all output to the temp file and background the process
-    cmd = ('/Applications/HandBrakeCLI --preset "%s" --input "%s" '
-           '--output "%s" &> %s & echo $!') % (OUTPUT_PRESET, in_file, out_file, fp.name)
+    cmd = ('/Applications/HandBrakeCLI --preset "{preset}" --subtitle-lang-list eng '
+           '--first-subtitle --input "{input}" --output "{output}" &> {filename} & echo $!').format(
+               preset=OUTPUT_PRESET, input=in_file, output=out_file, filename=fp.name)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     # This foreground process should return more or less immediately.
     out, err = p.communicate()
