@@ -24,6 +24,7 @@ DL_CHUNK_SIZE = 1024
 def main():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('show_url', help='URL of the show\'s "details" page')
+  parser.add_argument('dest_dir', help='directory to download to')
   args = parser.parse_args()
 
   print 'downloading show from %s' % args.show_url
@@ -58,7 +59,7 @@ def main():
   print 'found %d files' % len(mp3_list)
 
   # create output folder
-  output_dir = os.path.join(os.getenv('HOME'), 'Desktop', os.path.basename(show_url.path).split('.')[0])
+  output_dir = os.path.join(os.path.abspath(args.dest_dir), os.path.basename(show_url.path).split('.')[0])
   print 'creating output directory %s' % output_dir
   if not os.path.exists(output_dir):
     os.makedirs(output_dir)
