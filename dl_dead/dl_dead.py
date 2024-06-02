@@ -4,7 +4,7 @@ Downloads Grateful Dead shows from archive.org.
 
 Provide a link to the URL of the "details" page, for example:
 
-$ ./dl_dead.py https://archive.org/details/gd71-12-10.shnf
+$ ./dl_dead.py https://archive.org/details/gd71-12-10.shnf ~/Music/dead/
 
 NOTE from Brian:
 This script is now mostly defunct, as archive.org no longer allows downloading of most
@@ -54,8 +54,23 @@ def main():
   # download m3u file
   m3u_url = '%s%s' % (archive_root, m3u_path)
   print('downloading m3u from URL %s' % m3u_url)
-  mp3_list = [line.strip() for line in requests.get(m3u_url).text.split('\n') if line.strip()]
-  print('found %d files' % len(mp3_list))
+  m3u_response = requests.get(m3u_url)
+  mp3_list = []
+  if m3u_response.status_code == 200:
+    mp3_list = [line.strip() for line in m3u_response.text.split('\n') if line.strip()]
+    print('found %d files' % len(mp3_list))
+  else:
+    print('failed to download m3u, falling back to source scan')
+    for src_line in details_src.split('\n'):
+      if '.mp3' in src_line:
+        href = src_line.find('href=')
+        first_quote = src_line.find('"', href)
+        second_quote = src_line.find('"', first_quote+1)
+        mp3_path = src_line[first_quote+1:second_quote]
+        if not mp3_path.startswith('https://'):
+          continue
+        print('found mp3 in source: %s' % mp3_path)
+        mp3_list.append(mp3_path)
 
   # create output folder
   output_dir = os.path.join(os.path.abspath(args.dest_dir), os.path.basename(show_url.path).split('.')[0])
